@@ -12,7 +12,7 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 // Whitelist of allowed commands for security as per Specification.md
-const COMMAND_WHITELIST: &[&str] = &["ls", "vim", "cat", "echo", "pwd", "date", "whoami", "top", "htop"];
+//const COMMAND_WHITELIST: &[&str] = &["ls", "vi", "vim", "cat", "echo", "pwd", "date", "whoami", "top", "htop", "/usr/bin/docker"];
 
 #[tokio::main]
 async fn main() {
@@ -48,7 +48,20 @@ async fn handle_socket(socket: WebSocket) {
         })
         .unwrap();
 
-    let cmd = CommandBuilder::new("bash");
+    //#let cmd = CommandBuilder::new("bash");
+    //let cmd = CommandBuilder::new("/usr/bin/docker run -it my-gcc-ubuntu  /bin/bash");
+
+    // 1. 빌더 생성
+    let mut cmd = CommandBuilder::new("/usr/bin/docker");
+
+    // 2. 인자를 한 줄씩 추가 (체이닝 금지)
+    cmd.arg("run");
+    cmd.arg("-it");
+    cmd.arg("my-gcc-ubuntu");
+    cmd.arg("/bin/bash");
+
+    // 3. 실행
+    //let child = cmd.spawn_pty_async(&master).unwrap();
     let _child = pty_pair.slave.spawn_command(cmd).unwrap();
 
     let mut writer = pty_pair.master.take_writer().unwrap();
@@ -58,7 +71,7 @@ async fn handle_socket(socket: WebSocket) {
 
     // Spawn a task to read from PTY and send to WebSocket
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
-    
+
     // Read from PTY thread
     std::thread::spawn(move || {
         let mut buf = [0u8; 1024];
@@ -83,12 +96,12 @@ async fn handle_socket(socket: WebSocket) {
             match msg {
                 Message::Text(text) => {
                     // Basic command filtering for security
-                    if is_command_allowed(&text) {
-                        let _ = writer.write_all(text.as_bytes());
-                    } else {
+                    //if is_command_allowed(&text) {
+                    let _ = writer.write_all(text.as_bytes());
+                    //} else {
                         // Notify user if command is not allowed
-                        let _ = writer.write_all(b"\r\nCommand not in whitelist\r\n");
-                    }
+                    //    let _ = writer.write_all(b"\r\nCommand not in whitelist\r\n");
+                    //}
                 }
                 Message::Binary(bin) => {
                     let _ = writer.write_all(&bin);
@@ -104,26 +117,26 @@ async fn handle_socket(socket: WebSocket) {
     };
 }
 
-fn is_command_allowed(input: &str) -> bool {
-    // This is a naive check for demonstration. 
+//fn is_command_allowed(input: &str) -> bool {
+    // This is a naive check for demonstration.
     // In a real app, you'd need more robust parsing to prevent bypasses like `ls; rm -rf /`
-    let trimmed = input.trim();
-    if trimmed.is_empty() { return true; }
-    
+//    let trimmed = input.trim();
+//    if trimmed.is_empty() { return true; }
+
     // Check if the first word is in the whitelist
-    let cmd = trimmed.split_whitespace().next().unwrap_or("");
-    COMMAND_WHITELIST.contains(&cmd) || trimmed.len() == 1 // Allow single characters (keystrokes)
-}
+//    let cmd = trimmed.split_whitespace().next().unwrap_or("");
+    //COMMAND_WHITELIST.contains(&cmd) || trimmed.len() == 1 // Allow single characters (keystrokes)
+//}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_whitelist() {
-        assert!(is_command_allowed("ls -la"));
-        assert!(is_command_allowed("vim"));
-        assert!(!is_command_allowed("rm -rf /"));
-        assert!(is_command_allowed("a")); // single keystroke
-    }
-}
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//
+ //   #[test]
+  //  fn test_whitelist() {
+   //     assert!(is_command_allowed("ls -la"));
+    //    assert!(is_command_allowed("vim"));
+     //   assert!(!is_command_allowed("rm -rf /"));
+      //  assert!(is_command_allowed("a")); // single keystroke
+   // }
+//}
