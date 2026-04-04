@@ -103,6 +103,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn harness_calc_zeros() {
+        // This is a "Oneshot" harness for a specific behavior (zeros)
+        let app = app();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/calc")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(json!({ "a": 0, "b": 0 }).to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body["result"], 0);
+    }
+
+    #[tokio::test]
     async fn test_calc_invalid_input() {
         let app = app();
 
