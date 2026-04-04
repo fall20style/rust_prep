@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Axum Bash CLI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <style>
+        body { background-color: #000; margin: 0; padding: 20px; color: #fff; font-family: monospace; }
+        #terminal { height: 90vh; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <script>
+        const term = new Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#000',
+            }
+        });
+        term.open(document.getElementById('terminal'));
+        term.writeln('Axum Bash CLI connected.');
+        term.write('\r\n$ ');
+
+        let curr_line = '';
+
+        term.onKey(e => {
+            const char = e.key;
+            if (e.domEvent.keyCode === 13) { // Enter
+                if (curr_line.trim().length > 0) {
+                    term.write('\r\n');
+                    executeCommand(curr_line);
+                } else {
+                    term.write('\r\n$ ');
+                }
+                curr_line = '';
+            } else if (e.domEvent.keyCode === 8) { // Backspace
+                if (curr_line.length > 0) {
+                    curr_line = curr_line.slice(0, -1);
+                    term.write('\b \b');
+                }
+            } else {
+                curr_line += char;
+                term.write(char);
+            }
+        });
+
+        async function executeCommand(command) {
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: command })
+                });
+                const data = await response.json();
+                
+                if (data.output) {
+                    term.writeln(data.output.replace(/\n/g, '\r\n'));
+                }
+                if (data.error) {
+                    term.writeln('\x1b[31m' + data.error.replace(/\n/g, '\r\n') + '\x1b[0m');
+                }
+                term.write('$ ');
+            } catch (err) {
+                term.writeln('\x1b[31mError: ' + err.message + '\x1b[0m');
+                term.write('$ ');
+            }
+        }
+    </script>
+</body>
+</html>
