@@ -5,8 +5,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <style>
-        body { background-color: #000; margin: 0; padding: 20px; color: #fff; font-family: monospace; }
-        #terminal { height: 90vh; width: 100%; }
+        body { background-color: #000; margin: 0; padding: 20px; color: #fff; font-family: monospace; overflow: hidden; }
+        #terminal { height: 95vh; width: 100%; }
     </style>
 </head>
 <body>
@@ -19,53 +19,42 @@
             }
         });
         term.open(document.getElementById('terminal'));
-        term.writeln('Axum Bash CLI connected.');
-        term.write('\r\n$ ');
+        term.writeln('Connecting to Axum Bash CLI...');
 
-        let curr_line = '';
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
-        term.onKey(e => {
-            const char = e.key;
-            if (e.domEvent.keyCode === 13) { // Enter
-                if (curr_line.trim().length > 0) {
-                    term.write('\r\n');
-                    executeCommand(curr_line);
-                } else {
-                    term.write('\r\n$ ');
-                }
-                curr_line = '';
-            } else if (e.domEvent.keyCode === 8) { // Backspace
-                if (curr_line.length > 0) {
-                    curr_line = curr_line.slice(0, -1);
-                    term.write('\b \b');
-                }
+        socket.onopen = () => {
+            term.writeln('Connection established.');
+        };
+
+        socket.onmessage = async (event) => {
+            const data = event.data;
+            if (data instanceof Blob) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    term.write(new Uint8Array(reader.result));
+                };
+                reader.readAsArrayBuffer(data);
             } else {
-                curr_line += char;
-                term.write(char);
+                term.write(data);
+            }
+        };
+
+        socket.onclose = () => {
+            term.writeln('\r\nConnection closed.');
+        };
+
+        socket.onerror = (error) => {
+            term.writeln('\r\nWebSocket error: ' + error.message);
+        };
+
+        // Send raw data to server (supports vim, tab, etc.)
+        term.onData(data => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(data);
             }
         });
-
-        async function executeCommand(command) {
-            try {
-                const response = await fetch('/api/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ command: command })
-                });
-                const data = await response.json();
-                
-                if (data.output) {
-                    term.writeln(data.output.replace(/\n/g, '\r\n'));
-                }
-                if (data.error) {
-                    term.writeln('\x1b[31m' + data.error.replace(/\n/g, '\r\n') + '\x1b[0m');
-                }
-                term.write('$ ');
-            } catch (err) {
-                term.writeln('\x1b[31mError: ' + err.message + '\x1b[0m');
-                term.write('$ ');
-            }
-        }
     </script>
 </body>
 </html>

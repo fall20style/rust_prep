@@ -3,29 +3,31 @@ set -e
 
 echo "Starting E2E API Verification..."
 
-# Test /api/execute with 'ls'
-RESPONSE=$(curl -s -X POST http://127.0.0.1:8080/api/execute \
-  -H "Content-Type: application/json" \
-  -d '{"command": "ls"}')
-
-if echo "$RESPONSE" | grep -q "output"; then
-  echo "[PASS] /api/execute 'ls' successful"
-else
-  echo "[FAIL] /api/execute 'ls' failed"
-  echo "Response: $RESPONSE"
+# Check if server is running on 8080
+if ! curl -s --head http://127.0.0.1:8080 | grep "200 OK" > /dev/null; then
+  echo "[FAIL] Server is not responding on http://127.0.0.1:8080"
   exit 1
 fi
 
-# Test /api/execute with an error command
-RESPONSE_ERR=$(curl -s -X POST http://127.0.0.1:8080/api/execute \
-  -H "Content-Type: application/json" \
-  -d '{"command": "command_that_does_not_exist"}')
-
-if echo "$RESPONSE_ERR" | grep -q "error"; then
-  echo "[PASS] /api/execute error handling successful"
+# Check for index.html
+if curl -s http://127.0.0.1:8080 | grep -q "xterm"; then
+  echo "[PASS] UI with xterm.js is being served"
 else
-  echo "[FAIL] /api/execute error handling failed"
-  echo "Response: $RESPONSE_ERR"
+  echo "[FAIL] UI with xterm.js not found in response"
+  exit 1
+fi
+
+# Check for /ws endpoint upgrade support
+WS_UPGRADE=$(curl -i -s -N -H "Connection: Upgrade" \
+  -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
+  -H "Sec-WebSocket-Version: 13" \
+  http://127.0.0.1:8080/ws | head -n 1)
+
+if echo "$WS_UPGRADE" | grep -q "101 Switching Protocols"; then
+  echo "[PASS] /ws endpoint correctly handles upgrade to WebSocket"
+else
+  echo "[FAIL] /ws endpoint failed to handle WebSocket upgrade. Response: $WS_UPGRADE"
   exit 1
 fi
 

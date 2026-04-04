@@ -8,6 +8,7 @@ A repository for Rust learning, practice, and demonstration projects, focusing o
 - **[02 Axum Example](./02_axum_example/)**: A basic Axum server showcasing GET and POST requests with JSON processing.
 - **[03 Axum Web Server](./03_axum_websvr/)**: A static file server using `tower-http` to serve content from a local directory.
 - **[04 Gemini Harness Calc API](./04_gemini_harness_calc_api/)**: A high-reliability API development demonstration using the "Harness Engineering" approach.
+- **[05 Gemini Harness Axum Bash CLI](./05_gemini_harness_axum_bash_cli/)**: A web-based terminal interface using `xterm.js` and Axum, following the "Harness Engineering" approach for high reliability.
 
 ## Documentation
 

@@ -6,6 +6,11 @@
 - [x] 'ls -alh' command execution support.
 - [x] 12.7.0.0.1:8080 shows a UI with xterm.js to see the result like linux terminal.
 
+- [x] Emulating terminal env in web browser should be supported.
+- [x] List up all linux command that this system provides as a whitelist in order to make someone hidden for security.
+- [x] I want vim or other terminal app to run on this web app.
+- [x] tab or space key supported
+
 ### Verification Mandate
 - [x] All endpoints verified using the **Harness Engineering** approach.
 - [x] Static evaluation of Axum extractor patterns.
