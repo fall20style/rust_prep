@@ -1,0 +1,58 @@
+name: Subdir Rust Docker CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    # 해당 폴더 내의 파일이 변경될 때만 워크플로우 실행
+    paths:
+      - '07_axum_bollard_term/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  # 서브 디렉터리 경로 설정
+  WORKING_DIRECTORY: 07_axum_bollard_term
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    # 모든 run 명령어가 이 디렉터리에서 실행되도록 설정
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ${{ env.WORKING_DIRECTORY }}/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles(format('{0}/Cargo.lock', env.WORKING_DIRECTORY)) }}
+
+      - name: Build Binary
+        run: cargo build --release
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          # Docker 빌드 컨텍스트를 서브 디렉터리로 지정
+          context: ${{ env.WORKING_DIRECTORY }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
