@@ -21,12 +21,11 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 빌드 스테이지에서 생성된 바이너리만 가져옴
-COPY --from=builder /usr/src/app/target/release/my-docker-term /usr/local/bin/app
+# [중요] Cargo.toml의 name인 'my-docker-term'을 정확히 복사함
+COPY --from=builder /usr/src/app/target/release/my-docker-term /usr/local/bin/my-docker-term
 
-# 외부 접속 포트 설정함
+# 실행 권한 확인 및 포트 설정함
 EXPOSE 3000
 
-# 서버 실행함
-CMD ["app"]
-
+# 실행 명령어 수정함
+CMD ["/usr/local/bin/my-docker-term"]
