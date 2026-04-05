@@ -1,0 +1,108 @@
+미완성 - 안풀림
+
+docker run으로 axum web띄우고, 그 안에서 docker image인 ubuntu 호출하기
+
+-------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------
+
+
+docker run --rm -p 8080:8080 axum-app
+
+
+
+
+~/work/rust_prep/06_axum_bash_cli_Dockerfile$ curl -v http://127.0.0.1:8080
+*   Trying 127.0.0.1:8080...
+* TCP_NODELAY set
+* Connected to 127.0.0.1 (127.0.0.1) port 8080 (#0)
+> GET / HTTP/1.1
+> Host: 127.0.0.1:8080
+> User-Agent: curl/7.68.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< content-type: text/plain; charset=utf-8
+< content-length: 23
+< date: Sun, 05 Apr 2026 00:57:20 GMT
+< 
+* Connection #0 to host 127.0.0.1 left intact
+
+
+
+docker run --rm -p 8080:8080 --privileged -v /var/run/docker.sock:/var/run/docker.sock axum-app
+
+
+그건 "도커 안에서 도커를 실행(Docker-in-Docker)"하려는데, 컨테이너 환경이 호스트의 도커 엔진에 접근할 권한이 없어서 생기는 전형적인 문제임.
+우분투 로컬에서 직접 실행할 때는 내 계정이 도커 권한을 가지고 있어서 잘 되지만, 컨테이너로 들어가면 그 안은 격리된 세상이라 외부 도커를 부릴 수 없음.
+## 1. 해결 방법: Docker Socket 공유 (가장 쉬운 법)
+도커를 실행(run)할 때, 호스트의 도커 엔진 통로(docker.sock)를 컨테이너 안으로 연결해주면 됨.
+
+# 실행할 때 -v 옵션으로 소켓을 공유함
+docker run --rm -p 8080:8080 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  axum-app
+
+## 2. 왜 이렇게 해야 함?
+
+* 격리: 기본적으로 컨테이너는 호스트에 무슨 프로그램이 깔려 있는지 모름.
+* 권한: -v /var/run/docker.sock... 옵션을 주면, 컨테이너 내부의 앱이 "호스트 형님, 도커 좀 대신 돌려주쇼"라고 요청할 수 있는 통로가 생기는 거임.
+
+## 3. Dockerfile 확인 (CLI 도구 포함 여부)
+컨테이너 안에서 docker run 명령어를 날리려면, 이미지 안에 도커 클라이언트(CLI)가 설치되어 있어야 함.
+만약 docker: not found 에러가 난다면 Dockerfile에 아래 내용을 추가해서 빌드해야 함. (Debian 기준)
+
+# 실행 스테이지에 추가RUN apt-get update && apt-get install -y docker.io && rm -rf /var/lib/apt/lists/*
+
+## 4. 권한 문제 (Permission Denied)
+소켓을 연결했는데도 권한 에러가 나면, 컨테이너를 root 권한으로 실행하거나 소켓 권한을 조정해야 함. 테스트용이라면 --privileged 옵션을 써보는 것도 방법임.
+
+docker run --rm -p 8080:8080 --privileged \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  axum-app
+
+## 요약
+
+   1. 컨테이너는 기본적으로 밖의 도커를 못 건드림.
+   2. -v /var/run/docker.sock:/var/run/docker.sock 옵션이 핵심임.
+   3. 컨테이너 안에 도커 CLI가 깔려 있는지 확인하셈.
+
+이제 소켓 공유 옵션 넣고 다시 돌려보셈. 컨테이너 속의 컨테이너가 잘 뜸?
+Bash 연결 결과가 브라우저에 찍히기 시작함? 아니면 권한 에러 메시지 뜸?
+
+
+
+
+~/work/rust_prep/06_axum_bash_cli_Dockerfile$ docker build --no-cache -t axum-app .
+[+] Building 240.4s (15/15) FINISHED                                                                docker:default
+ => [internal] load build definition from Dockerfile                                                          0.3s
+ => => transferring dockerfile: 768B                                                                          0.0s
+ => [internal] load metadata for docker.io/library/rust:1.80-slim                                             2.4s
+ => [internal] load metadata for docker.io/library/debian:bookworm-slim                                       2.4s
+ => [internal] load .dockerignore                                                                             0.2s
+ => => transferring context: 2B                                                                               0.0s
+ => [builder 1/4] FROM docker.io/library/rust:1.80-slim@sha256:907ff4b3ee7df57149ffee04f606e0a08b9b2ed3507f0  0.0s
+ => CACHED [stage-1 1/5] FROM docker.io/library/debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd  0.0s
+ => [internal] load build context                                                                             0.5s
+ => => transferring context: 1.14kB                                                                           0.0s
+ => CACHED [builder 2/4] WORKDIR /usr/src/app                                                                 0.0s
+ => [stage-1 2/5] RUN apt-get update && apt-get install -y     docker.io     ca-certificates     && rm -rf  219.8s
+ => [builder 3/4] COPY . .                                                                                    2.4s
+ => [builder 4/4] RUN cargo build --release                                                                 179.8s
+ => [stage-1 3/5] WORKDIR /usr/local/bin                                                                      1.1s 
+ => [stage-1 4/5] COPY --from=builder /usr/src/app/target/release/axum-bash-cli ./app                         1.2s 
+ => [stage-1 5/5] RUN chmod +x ./app                                                                          3.1s 
+ => exporting to image                                                                                       10.2s 
+ => => exporting layers                                                                                       9.7s 
+ => => writing image sha256:fc446fd874b4da1ce0f15bb53a5fcf615709c8e006cbda0cb380dbe23e4047b5                  0.1s 
+ => => naming to docker.io/library/axum-app                                                                   0.2s 
+mjpark@mjpark-Samsung-Desktop-System:~/work/rust_prep/06_axum_bash_cli_Dockerfile$ docker run --rm -it axum-app which docker                                                                                                          
+/usr/bin/docker   
+
+
+mjpark@mjpark-Samsung-Desktop-System:~/work/rust_prep/06_axum_bash_cli_Dockerfile$ docker run --rm -it axum-app which docker                                                                                                          
+/usr/bin/docker                                                                                                    
+~/work/rust_prep/06_axum_bash_cli_Dockerfile$ docker run --rm -p 8080:8080 --privileged -v /var/run/docker.sock:/var/run/docker.sock axum-app
+
+

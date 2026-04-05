@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://jsdelivr.net" />
+    <script src="https://jsdelivr.net"></script>
+</head>
+<body style="background: #000; margin: 0; overflow: hidden;">
+    <div id="terminal" style="height: 100vh;"></div>
+    <script>
+        const term = new Terminal({ cursorBlink: true, theme: { background: '#000' } });
+        term.open(document.getElementById('terminal'));
+
+        // 웹소켓 연결 (서버 주소에 맞게 수정)
+        const socket = new WebSocket(`ws://${window.location.host}/ws`);
+
+        // 서버에서 온 데이터를 터미널에 뿌림
+        socket.onmessage = (event) => { term.write(event.data); };
+
+        // 터미널 입력을 서버로 보냄
+        term.onData(data => { socket.send(data); });
+
+        socket.onopen = () => { term.write('*** Connected to Docker Bash ***\r\n'); };
+        socket.onclose = () => { term.write('\r\n*** Disconnected ***\r\n'); };
+    </script>
+</body>
+</html>
+
