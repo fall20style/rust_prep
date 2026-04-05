@@ -6,6 +6,7 @@ on:
     # 해당 폴더 내의 파일이 변경될 때만 워크플로우 실행
     paths:
       - '07_axum_bollard_term/**'
+  workflow_dispatch: # GitHub 웹 UI에서 수동 실행 버튼을 만들어줌
 
 env:
   REGISTRY: ghcr.io
