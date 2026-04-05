@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/xterm.css" />
+    <script src="/xterm.js"></script>
+    <style>
+        body { margin: 0; background: #1a1a1a; overflow: hidden; }
+        #terminal { width: 100vw; height: 100vh; padding: 10px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <script>
+        const term = new Terminal({
+            cursorBlink: true,
+            theme: { background: '#1a1a1a' },
+            convertEol: true // 줄바꿈(\n)을 자동으로 \r\n으로 변환
+        });
+        term.open(document.getElementById('terminal'));
+        
+        // 연결 전 초기 메시지 출력 (화면이 살아있는지 확인용)
+        term.write('\x1b[33m[1/2] 서버 연결 시도 중...\x1b[0m\r\n');
+
+        const socket = new WebSocket(`ws://${window.location.host}/ws`);
+        socket.binaryType = 'arraybuffer';
+
+        socket.onopen = () => {
+            term.write('\x1b[32m[2/2] 도커 연결 성공! (Enter를 누르세요)\x1b[0m\r\n');
+            socket.send('\n'); // 프롬프트 강제 출력용 엔터 전송
+        };
+
+        socket.onmessage = (ev) => {
+            if (ev.data instanceof ArrayBuffer) {
+                term.write(new Uint8Array(ev.data));
+            } else {
+                term.write(ev.data);
+            }
+        };
+
+        socket.onclose = () => term.write('\r\n\x1b[31m[시스템] 연결 종료\x1b[0m');
+        socket.onerror = (e) => term.write('\r\n\x1b[31m[에러] 웹소켓 연결 실패\x1b[0m');
+
+        term.onData(data => {
+            if (socket.readyState === WebSocket.OPEN) socket.send(data);
+        });
+    </script>
+</body>
+</html>
+

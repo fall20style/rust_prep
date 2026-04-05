@@ -27,7 +27,7 @@ async fn main() {
         .route("/ws", get(ws_handler))
         .fallback_service(ServeDir::new("static"));
 
-    let addr = "127.0.0.1:8080";
+    let addr = "0.0.0.0:8080";
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     info!("listening on {}", addr);
     axum::serve(listener, app).await.unwrap();
