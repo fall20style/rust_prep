@@ -1,31 +1,40 @@
-# 1단계: 빌드 스테이지 (Rust 컴파일러 포함)
-FROM rustlang/rust:nightly-slim AS builder
+# 1단계: 빌드 스테이지 (최신 Cargo.lock 및 Edition 2024 대응을 위해 nightly 사용함)
+FROM rustlang/rust:nightly-bookworm AS builder
 
 WORKDIR /usr/src/app
 
-# 의존성 캐싱을 위해 설정 파일 먼저 복사함
-COPY Cargo.toml Cargo.lock ./
-# 빈 소스로 빌드하여 라이브러리만 먼저 다운로드함 (시간 단축용)
-RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
+# 빌드에 필요한 시스템 라이브러리 설치함
+RUN apt-get update && apt-get install -y libssl-dev pkg-config && rm -rf /var/lib/apt/lists/*
 
-# 실제 소스 코드 복사 및 빌드함
+# 프로젝트 파일 전체 복사함 (index.html, xterm.js 등 리소스 포함 필수임)
 COPY . .
+
+# Release 모드로 빌드함 (바이너리 이름: my-docker-term)
 RUN cargo build --release
 
-# 2단계: 실행 스테이지 (최소 환경)
+
+# 2단계: 실행 스테이지 (경량화된 데비안 이미지 사용함)
 FROM debian:bookworm-slim
 
-# 실행에 필요한 라이브러리 및 인증서 설치함
+# 실행 시 필요한 최소 라이브러리 및 인증서 설치함
 RUN apt-get update && apt-get install -y \
     libssl-dev \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# [중요] Cargo.toml의 name인 'my-docker-term'을 정확히 복사함
+# 빌드 스테이지에서 생성된 바이너리를 실행 경로로 복사함
 COPY --from=builder /usr/src/app/target/release/my-docker-term /usr/local/bin/my-docker-term
 
-# 실행 권한 확인 및 포트 설정함
+# 실행 권한 부여함
+RUN chmod +x /usr/local/bin/my-docker-term
+
+# 컨테이너 외부 접속 포트 설정함 (Axum 기본 포트임)
 EXPOSE 3000
 
-# 실행 명령어 수정함
-CMD ["/usr/local/bin/my-docker-term"]
+# 환경 변수 설정 (로그 확인 및 주소 바인딩 도움용임)
+ENV RUST_LOG=debug
+ENV RUST_BACKTRACE=1
+
+# 실행 명령어 (절대 경로 사용함)
+ENTRYPOINT ["/usr/local/bin/my-docker-term"]
+
