@@ -21,7 +21,7 @@ async fn main() {
             ([(axum::http::header::CONTENT_TYPE, "text/css")], include_str!("xterm.css")) 
         }));
 
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("🚀 서버 오픈: http://localhost:3000");
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
