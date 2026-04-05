@@ -1,5 +1,5 @@
 # 1단계: 빌드 스테이지 (Rust 컴파일러 포함)
-FROM rust:1.80-slim AS builder
+FROM rustlang/rust:nightly-slim AS builder
 
 WORKDIR /usr/src/app
 
