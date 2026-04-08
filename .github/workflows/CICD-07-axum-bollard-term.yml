@@ -40,6 +40,11 @@ jobs:
             ${{ env.WORKING_DIRECTORY }}/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles(format('{0}/Cargo.lock', env.WORKING_DIRECTORY)) }}
 
+
+      # 이 단계를 'Build Binary' 앞에 추가하세요
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Build Binary
         run: cargo build --release
 
